@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0E1216">
+<title>Rastreabilidade | Bloco 4 — Eplast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-compat.js"></script>
+<style>
+/* ============================================================
+   TOKENS — paleta "painel de controle industrial":
+   aço pintado + âmbar de sinalização de armazém
+   ============================================================ */
+:root{
+  --bg:#0E1216;
+  --panel:#151B21;
+  --panel-2:#1B232B;
+  --panel-3:#232E38;
+  --line:#2A343E;
+  --line-soft:#1F272F;
+  --ink:#E7EDF3;
+  --ink-2:#A8B4C0;
+  --mute:#6F7C89;
+
+  --amber:#FFB020;
+  --amber-ink:#191100;
+  --amber-glow:rgba(255,176,32,.16);
+
+  --st-estoque:#3FB98A;
+  --st-producao:#FFB020;
+  --st-terceiros:#8B7CF6;
+  --st-rnc:#F2555A;
+  --st-encerrado:#61707E;
+
+  --r:10px;
+  --r-sm:6px;
+  --rail:236px;
+  --shadow:0 18px 48px -24px rgba(0,0,0,.9);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --disp:'Barlow Condensed','Barlow',system-ui,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--panel-3);border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#33404c}
+
+/* ---------- Tipografia utilitária ---------- */
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;letter-spacing:.01em;margin:0}
+.eyebrow{
+  font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--mute);
+}
+.mono{font-family:var(--mono);font-variant-ligatures:none}
+.num{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+#login{
+  position:fixed;inset:0;z-index:9000;display:grid;place-items:center;
+  background:
+    radial-gradient(900px 480px at 12% -10%, rgba(255,176,32,.09), transparent 60%),
+    var(--bg);
+  padding:24px;
+}
+#login .sheet{
+  width:100%;max-width:396px;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:34px 30px 28px;box-shadow:var(--shadow);
+}
+#login .mark{
+  display:flex;align-items:center;gap:11px;margin-bottom:26px;
+}
+#login .mark .glyph{
+  width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
+  background:var(--amber);color:var(--amber-ink);font-family:var(--disp);
+  font-weight:700;font-size:19px;letter-spacing:-.02em;
+}
+#login h1{font-size:23px;line-height:1.1}
+#login .mark p{margin:1px 0 0;font-size:12.5px;color:var(--mute);letter-spacing:.02em}
+.field{margin-bottom:13px}
+.field label{
+  display:block;font-family:var(--disp);font-size:12px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6px;
+}
+.inp{
+  width:100%;padding:11px 13px;background:var(--bg);border:1px solid var(--line);
+  border-radius:var(--r-sm);font-size:16px;min-height:44px;transition:border-color .15s,background .15s;
+}
+.inp::placeholder{color:var(--mute)}
+.inp:focus{outline:none;border-color:var(--amber);background:#0B0F13}
+.inp.mono{letter-spacing:.02em}
+
+/* ============================================================
+   BOTÕES
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 15px;min-height:42px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
+  font-weight:600;font-size:14px;letter-spacing:.01em;
+  transition:background .14s,border-color .14s,transform .08s,opacity .14s;
+}
+.btn:hover:not(:disabled){background:var(--panel-3);border-color:#3a4652}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn-primary{background:var(--amber);border-color:var(--amber);color:var(--amber-ink)}
+.btn-primary:hover:not(:disabled){background:#ffc247;border-color:#ffc247}
+.btn-danger{background:transparent;border-color:rgba(242,85,90,.45);color:#ff8b8f}
+.btn-danger:hover:not(:disabled){background:rgba(242,85,90,.12);border-color:var(--st-rnc)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
+.btn-ghost:hover:not(:disabled){background:var(--panel-2);color:var(--ink)}
+.btn-sm{padding:5px 10px;min-height:32px;font-size:13px}
+.btn-block{width:100%}
+.btn-full{display:flex;width:100%}
+
+/* ============================================================
+   SHELL — trilho lateral + área principal
+   ============================================================ */
+#app{display:none}
+#app.on{display:block}
+.shell{display:grid;grid-template-columns:var(--rail) 1fr;min-height:100vh}
+
+.rail{
+  background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+}
+.rail .brand{
+  display:flex;align-items:center;gap:10px;padding:18px 18px 16px;
+  border-bottom:1px solid var(--line-soft);
+}
+.rail .brand .glyph{
+  width:32px;height:32px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;
+  background:var(--amber);color:var(--amber-ink);font-family:var(--disp);font-weight:700;font-size:16px;
+}
+.rail .brand strong{display:block;font-family:var(--disp);font-size:16px;line-height:1.1;letter-spacing:.02em}
+.rail .brand span{font-size:11px;color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
+.rail nav{padding:12px 10px;overflow-y:auto;flex:1}
+.rail .grp{
+  font-family:var(--disp);font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);padding:14px 10px 7px;
+}
+.navitem{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:9px 11px;margin-bottom:2px;border:0;border-radius:var(--r-sm);
+  background:transparent;color:var(--ink-2);font-weight:500;font-size:14.5px;text-align:left;
+  transition:background .13s,color .13s;
+}
+.navitem:hover{background:var(--panel-2);color:var(--ink)}
+.navitem.on{background:var(--panel-3);color:var(--ink)}
+.navitem.on .ic{color:var(--amber)}
+.navitem .ic{width:18px;flex:0 0 auto;text-align:center;font-size:15px;color:var(--mute)}
+.navitem .tally{
+  margin-left:auto;font-family:var(--mono);font-size:11.5px;font-weight:500;
+  color:var(--mute);background:var(--bg);border:1px solid var(--line-soft);
+  padding:1px 6px;border-radius:20px;
+}
+.navitem.on .tally{color:var(--ink-2);border-color:var(--line)}
+.rail .foot{padding:12px;border-top:1px solid var(--line-soft)}
+.who{display:flex;align-items:center;gap:9px;padding:6px 4px 10px}
+.who .av{
+  width:30px;height:30px;border-radius:8px;flex:0 0 auto;display:grid;place-items:center;
+  background:var(--panel-3);color:var(--ink);font-family:var(--disp);font-weight:700;font-size:13px;
+}
+.who .meta{min-width:0;flex:1}
+.who .meta b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .meta span{font-size:11px;color:var(--mute);letter-spacing:.06em;text-transform:uppercase}
+
+main{min-width:0;display:flex;flex-direction:column}
+
+/* ---------- barra de comando ---------- */
+.cmdbar{
+  position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:12px;
+  padding:12px 22px;background:rgba(14,18,22,.9);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.scan{position:relative;flex:1;max-width:440px}
+.scan input{
+  width:100%;padding:9px 12px 9px 36px;min-height:40px;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  font-family:var(--mono);font-size:14px;letter-spacing:.04em;
+}
+.scan input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-glow)}
+.scan input::placeholder{font-family:var(--body);letter-spacing:normal;color:var(--mute)}
+.scan .ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mute);font-size:14px}
+.conn{
+  display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);
+  padding:6px 11px;background:var(--panel);border:1px solid var(--line);border-radius:20px;white-space:nowrap;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--st-estoque);flex:0 0 auto}
+.conn.off .dot{background:var(--st-rnc)}
+.conn.off{color:#ff9599;border-color:rgba(242,85,90,.4)}
+
+.wrap{padding:22px;max-width:1480px;width:100%;margin:0 auto;flex:1}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.pagehead h2{font-size:27px;line-height:1.05;letter-spacing:.005em}
+.pagehead .sub{font-size:13.5px;color:var(--mute);margin-top:3px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ============================================================
+   CARDS / PAINÉIS
+   ============================================================ */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.panel + .panel{margin-top:14px}
+.panel h3{font-size:18px;margin-bottom:3px}
+.panel .hint{font-size:13px;color:var(--mute);margin:0 0 14px}
+
+/* ---------- faixa de indicadores ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:16px}
+.kpi{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 15px;border-top:2px solid var(--line);
+}
+.kpi[data-k="Estoque"]{border-top-color:var(--st-estoque)}
+.kpi[data-k="Produção"]{border-top-color:var(--st-producao)}
+.kpi[data-k="Terceiros"]{border-top-color:var(--st-terceiros)}
+.kpi[data-k="RNC"]{border-top-color:var(--st-rnc)}
+.kpi[data-k="Parada"]{border-top-color:var(--amber)}
+.kpi .lbl{
+  font-family:var(--disp);font-size:11.5px;font-weight:600;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--mute);
+}
+.kpi .val{font-family:var(--mono);font-size:29px;font-weight:500;line-height:1.15;margin-top:5px;font-variant-numeric:tabular-nums}
+.kpi .cap{font-size:12px;color:var(--mute);margin-top:2px}
+
+/* ============================================================
+   SIGNATURE: mapa do Bloco 4 (planta do armazém)
+   Cada rua é desenhada como o rack real, posição a posição.
+   ============================================================ */
+.blocomap{
+  display:flex;gap:10px;align-items:flex-end;overflow-x:auto;
+  padding:6px 2px 14px;scrollbar-width:thin;
+}
+.rua{
+  flex:0 0 auto;width:62px;display:flex;flex-direction:column;align-items:stretch;gap:7px;
+  background:none;border:0;padding:0;text-align:center;
+}
+.rua .rack{
+  display:flex;flex-direction:column-reverse;gap:3px;
+  padding:5px;background:var(--bg);border:1px solid var(--line);border-radius:7px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.rua:hover .rack{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-glow)}
+.slot{height:9px;border-radius:2px;background:var(--panel-2);transition:background .2s}
+.slot.f-estoque{background:var(--st-estoque)}
+.slot.f-terceiros{background:var(--st-terceiros)}
+.slot.f-over{background:var(--st-rnc)}
+.rua .tag{font-family:var(--disp);font-size:13px;font-weight:600;letter-spacing:.09em;color:var(--ink-2)}
+.rua:hover .tag{color:var(--ink)}
+.rua .pct{font-family:var(--mono);font-size:11.5px;color:var(--mute)}
+.rua.hot .pct{color:var(--amber)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--mute);margin-top:4px}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:middle}
+
+/* ---------- cartão sem endereço ---------- */
+.loose{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;
+  margin-top:14px;padding:14px 16px;text-align:left;
+  background:var(--panel-2);border:1px dashed var(--line);border-radius:var(--r);color:var(--ink);
+  transition:border-color .15s,background .15s;
+}
+.loose:hover{border-color:var(--amber);background:var(--panel-3)}
+.loose .n{font-family:var(--mono);font-size:26px;font-weight:500}
+
+/* ============================================================
+   TABELAS
+   ============================================================ */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{
+  position:sticky;top:0;z-index:20;background:var(--panel-2);
+  font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-2);text-align:left;padding:0;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+thead th .th{display:flex;align-items:center;gap:6px;padding:10px 12px}
+thead th .sortable{background:none;border:0;padding:0;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;display:flex;align-items:center;gap:5px}
+thead th .sortable:hover{color:var(--ink)}
+thead th .arrow{font-size:9px;color:var(--amber);opacity:0}
+thead th.sorted .arrow{opacity:1}
+.fbtn{
+  margin-left:auto;background:none;border:0;color:var(--mute);padding:2px 4px;border-radius:4px;
+  font-size:11px;line-height:1;
+}
+.fbtn:hover{color:var(--ink);background:var(--panel-3)}
+.fbtn.on{color:var(--amber)}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background .1s}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--panel-2)}
+tbody tr.picked{background:rgba(255,176,32,.07)}
+td.qtd{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+td .sn{font-family:var(--mono);font-size:13px;letter-spacing:.03em;user-select:text}
+.colsel{width:38px;text-align:center}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--amber);cursor:pointer;margin:0;vertical-align:middle}
+
+/* ---------- dropdown de filtro ---------- */
+.fdrop{
+  position:fixed;z-index:400;width:246px;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--shadow);display:none;
+}
+.fdrop.on{display:block}
+.fdrop .top{padding:9px;border-bottom:1px solid var(--line)}
+.fdrop .top input{width:100%;padding:7px 9px;min-height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);font-size:14px}
+.fdrop .top input:focus{outline:none;border-color:var(--amber)}
+.fdrop .opts{max-height:224px;overflow-y:auto;padding:5px}
+.fopt{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:13.5px}
+.fopt:hover{background:var(--panel-3)}
+.fopt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fdrop .bot{display:flex;gap:6px;padding:9px;border-top:1px solid var(--line)}
+.fdrop .bot .btn{flex:1;min-height:34px;padding:5px}
+
+/* ---------- estados vazios ---------- */
+.empty{padding:52px 24px;text-align:center;color:var(--mute)}
+.empty .big{font-size:30px;opacity:.5;margin-bottom:10px}
+.empty h4{font-family:var(--disp);font-size:17px;color:var(--ink-2);margin-bottom:5px}
+.empty p{margin:0 auto;max-width:380px;font-size:13.5px}
+
+/* ============================================================
+   SELOS DE STATUS
+   ============================================================ */
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:2px 9px 2px 7px;border-radius:20px;font-size:12px;font-weight:600;
+  letter-spacing:.03em;border:1px solid;white-space:nowrap;
+}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.s-Estoque{color:var(--st-estoque);border-color:rgba(63,185,138,.35);background:rgba(63,185,138,.1)}
+.pill.s-Produção{color:var(--st-producao);border-color:rgba(255,176,32,.35);background:rgba(255,176,32,.1)}
+.pill.s-Terceiros{color:var(--st-terceiros);border-color:rgba(139,124,246,.35);background:rgba(139,124,246,.1)}
+.pill.s-RNC{color:var(--st-rnc);border-color:rgba(242,85,90,.35);background:rgba(242,85,90,.1)}
+.pill.s-Encerrado{color:var(--st-encerrado);border-color:rgba(97,112,126,.4);background:rgba(97,112,126,.12)}
+
+/* ============================================================
+   DETALHE DA CAIXA
+   ============================================================ */
+.split{display:grid;grid-template-columns:290px 1fr;gap:14px;align-items:start}
+.snlist{max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:0 -4px;padding:0 4px}
+.snrow{
+  display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;
+  background:var(--panel-2);border:1px solid transparent;border-radius:var(--r-sm);color:var(--ink);
+  transition:border-color .13s,background .13s;
+}
+.snpick{
+  flex:1;display:flex;align-items:center;gap:9px;min-width:0;
+  background:none;border:0;padding:0;color:inherit;text-align:left;
+}
+.snrow:hover{background:var(--panel-3)}
+.snrow.on{border-color:var(--amber);background:rgba(255,176,32,.09)}
+.snrow .code{font-family:var(--mono);font-size:13.5px;letter-spacing:.03em;flex:1}
+.specs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line-soft);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.spec{background:var(--panel);padding:11px 14px}
+.spec .k{font-family:var(--disp);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.spec .v{margin-top:3px;font-size:14.5px;font-weight:500;word-break:break-word}
+.spec .v.mono{font-family:var(--mono);font-size:13.5px;user-select:text}
+
+.flowbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.flowbtn{
+  display:inline-flex;align-items:center;gap:8px;padding:9px 14px;min-height:42px;
+  border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);
+  color:var(--ink);font-weight:600;font-size:14px;transition:border-color .14s,background .14s;
+}
+.flowbtn:hover:not(:disabled){background:var(--panel-3)}
+.flowbtn:disabled{opacity:.34;cursor:not-allowed}
+.flowbtn i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.flowbtn[data-to="Estoque"]:hover:not(:disabled){border-color:var(--st-estoque)}
+.flowbtn[data-to="Produção"]:hover:not(:disabled){border-color:var(--st-producao)}
+.flowbtn[data-to="Terceiros"]:hover:not(:disabled){border-color:var(--st-terceiros)}
+.flowbtn[data-to="RNC"]:hover:not(:disabled){border-color:var(--st-rnc)}
+.flowbtn[data-to="Encerrado"]:hover:not(:disabled){border-color:var(--st-encerrado)}
+
+.rowform{display:flex;gap:8px;flex-wrap:wrap}
+.rowform .inp{flex:1;min-width:190px}
+
+/* ---------- linha do tempo ---------- */
+.tl{position:relative;padding-left:22px;margin-top:6px}
+.tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:var(--line)}
+.ev{position:relative;padding:0 0 18px}
+.ev:last-child{padding-bottom:0}
+.ev::before{
+  content:"";position:absolute;left:-21px;top:5px;width:9px;height:9px;border-radius:50%;
+  background:var(--panel-3);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line);
+}
+.ev.now::before{background:var(--amber);box-shadow:0 0 0 1px var(--amber),0 0 0 5px var(--amber-glow)}
+.ev .head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.ev .act{font-weight:600;font-size:14.5px}
+.ev .when{font-family:var(--mono);font-size:11.5px;color:var(--mute)}
+.ev .by{font-size:13px;color:var(--ink-2);margin-top:1px}
+.ev .note{
+  margin-top:7px;padding:8px 11px;background:var(--panel-2);border-left:2px solid var(--line);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:13.5px;color:var(--ink-2);
+}
+
+/* ============================================================
+   BARRA DE SELEÇÃO EM MASSA
+   ============================================================ */
+.bulk{
+  position:fixed;left:50%;bottom:24px;transform:translate(-50%,150%);z-index:500;
+  display:flex;align-items:center;gap:12px;padding:11px 14px;
+  background:var(--panel-2);border:1px solid var(--amber);border-radius:12px;
+  box-shadow:0 22px 60px -18px rgba(0,0,0,.95);transition:transform .22s cubic-bezier(.2,.8,.3,1);
+  max-width:calc(100vw - 32px);flex-wrap:wrap;
+}
+.bulk.on{transform:translate(-50%,0)}
+.bulk .count{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--amber);white-space:nowrap}
+.bulk .sep{width:1px;height:22px;background:var(--line)}
+
+/* ============================================================
+   MODAL / TOASTS
+   ============================================================ */
+.scrim{
+  position:fixed;inset:0;z-index:800;background:rgba(6,9,12,.76);backdrop-filter:blur(3px);
+  display:none;padding:24px;overflow-y:auto;
+}
+.scrim.on{display:flex;align-items:flex-start;justify-content:center}
+.dialog{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  width:100%;max-width:760px;margin:auto;box-shadow:var(--shadow);
+}
+.dialog .dhead{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.dialog .dhead h3{flex:1;font-size:19px}
+.dialog .dbody{padding:18px}
+.dialog .dfoot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.x{background:none;border:0;color:var(--mute);font-size:24px;line-height:1;padding:2px 6px;border-radius:5px}
+.x:hover{color:var(--ink);background:var(--panel-2)}
+
+#toasts{position:fixed;right:18px;bottom:18px;z-index:900;display:flex;flex-direction:column;gap:8px;max-width:min(380px,calc(100vw - 36px))}
+.toast{
+  display:flex;gap:10px;align-items:flex-start;padding:11px 14px;background:var(--panel-2);
+  border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--r-sm);
+  box-shadow:var(--shadow);font-size:14px;animation:slidein .2s ease-out;
+}
+.toast.ok{border-left-color:var(--st-estoque)}
+.toast.err{border-left-color:var(--st-rnc)}
+@keyframes slidein{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+
+/* ---------- barra de tabs mobile ---------- */
+.tabbar{display:none}
+
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
+@media (max-width:1000px){
+  .split{grid-template-columns:1fr}
+  .snlist{max-height:230px}
+}
+@media (max-width:820px){
+  .shell{grid-template-columns:1fr}
+  .rail{display:none}
+  .wrap{padding:16px 14px 92px}
+  .cmdbar{padding:10px 14px}
+  .conn span{display:none}
+  .pagehead h2{font-size:23px}
+  .acts .btn{flex:1}
+  .tabbar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:600;
+    background:rgba(21,27,33,.97);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;
+  }
+  .tabbar button{
+    flex:1 0 auto;min-width:62px;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:0;color:var(--mute);padding:5px 6px;border-radius:var(--r-sm);
+    font-family:var(--disp);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .tabbar button .ic{font-size:17px}
+  .tabbar button.on{color:var(--amber)}
+  .bulk{bottom:78px;left:12px;right:12px;transform:translate(0,180%);max-width:none}
+  .bulk.on{transform:translate(0,0)}
+  #toasts{left:12px;right:12px;bottom:78px;max-width:none}
+  .kpi .val{font-size:25px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ LOGIN ============================ -->
+<div id="login">
+  <form class="sheet" id="loginForm" autocomplete="on">
+    <div class="mark">
+      <div class="glyph">R</div>
+      <div>
+        <h1>Rastreabilidade</h1>
+        <p>Bloco 4 · Caixas de pré-forma PET</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="loginEmail">E-mail</label>
+      <input class="inp" type="email" id="loginEmail" autocomplete="username" placeholder="nome@eplast.com" required>
+    </div>
+    <div class="field">
+      <label for="loginSenha">Senha</label>
+      <input class="inp" type="password" id="loginSenha" autocomplete="current-password" placeholder="••••••••" required>
+    </div>
+    <button class="btn btn-primary btn-full" id="btnLogin" type="submit" style="margin-top:8px">Entrar</button>
+    <p id="loginErr" style="display:none;margin:12px 0 0;font-size:13.5px;color:#ff8b8f"></p>
+  </form>
+</div>
+
+<!-- ============================ APLICAÇÃO ============================ -->
+<div id="app">
+<div class="shell">
+
+  <!-- ---------- trilho lateral ---------- -->
+  <aside class="rail">
+    <div class="brand">
+      <div class="glyph">R</div>
+      <div>
+        <strong>Rastreabilidade</strong>
+        <span>Bloco 4</span>
+      </div>
+    </div>
+    <nav id="nav">
+      <div class="grp">Visão</div>
+      <button class="navitem" data-view="painel" data-tela="dashboard"><span class="ic">▦</span>Painel</button>
+      <div class="grp">Fluxo</div>
+      <button class="navitem" data-view="estoque"    data-tela="estoque"    data-status="Estoque"><span class="ic">▪</span>Estoque<span class="tally" data-tally="Estoque">0</span></button>
+      <button class="navitem" data-view="producao"   data-tela="producao"   data-status="Produção"><span class="ic">▪</span>Produção<span class="tally" data-tally="Produção">0</span></button>
+      <button class="navitem" data-view="terceiros"  data-tela="terceiros"  data-status="Terceiros"><span class="ic">▪</span>Terceiros<span class="tally" data-tally="Terceiros">0</span></button>
+      <button class="navitem" data-view="rnc"        data-tela="rnc"        data-status="RNC"><span class="ic">▪</span>RNC<span class="tally" data-tally="RNC">0</span></button>
+      <button class="navitem" data-view="encerradas" data-tela="encerradas" data-status="Encerrado"><span class="ic">▪</span>Encerradas</button>
+      <div class="grp">Cadastro</div>
+      <button class="navitem" data-view="entrada"  data-tela="novaCaixa"><span class="ic">＋</span>Entrada de caixas</button>
+      <button class="navitem" data-view="produtos" data-tela="produtos"><span class="ic">◇</span>Produtos</button>
+      <button class="navitem" data-view="equipe"   data-tela="gerenciamento"><span class="ic">◈</span>Equipe e acessos</button>
+    </nav>
+    <div class="foot">
+      <div class="who">
+        <div class="av" id="whoAv">–</div>
+        <div class="meta">
+          <b id="whoNome">–</b>
+          <span id="whoPerfil">–</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full btn-sm" id="btnSair">Sair da conta</button>
+    </div>
+  </aside>
+
+  <!-- ---------- área principal ---------- -->
+  <main>
+    <div class="cmdbar">
+      <div class="scan">
+        <span class="ic">⌕</span>
+        <input id="scanInput" placeholder="Bipe ou digite o SN (ex.: PF00042)" autocomplete="off" spellcheck="false" enterkeyhint="search">
+      </div>
+      <div style="flex:1"></div>
+      <div class="conn" id="conn"><span class="dot"></span><span>Sincronizado</span></div>
+    </div>
+
+    <div class="wrap" id="view"></div>
+  </main>
+</div>
+
+<!-- ---------- tabs mobile ---------- -->
+<nav class="tabbar" id="tabbar"></nav>
+
+<!-- ---------- barra de ações em massa ---------- -->
+<div class="bulk" id="bulk">
+  <span class="count" id="bulkCount">0</span>
+  <span style="font-size:13.5px;color:var(--ink-2)">caixas selecionadas</span>
+  <span class="sep"></span>
+  <div id="bulkActions" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  <button class="btn btn-ghost btn-sm" id="bulkClear">Limpar</button>
+</div>
+</div>
+
+<!-- ---------- filtro de coluna (reaproveitado) ---------- -->
+<div class="fdrop" id="fdrop">
+  <div class="top"><input id="fdropSearch" placeholder="Buscar valor..." autocomplete="off"></div>
+  <div class="opts" id="fdropOpts"></div>
+  <div class="bot">
+    <button class="btn btn-sm" id="fdropAll">Todos</button>
+    <button class="btn btn-sm btn-primary" id="fdropApply">Aplicar</button>
+  </div>
+</div>
+
+<!-- ---------- diálogo ---------- -->
+<div class="scrim" id="scrim">
+  <div class="dialog" role="dialog" aria-modal="true">
+    <div class="dhead"><h3 id="dlgTitle">—</h3><button class="x" id="dlgX" aria-label="Fechar">&times;</button></div>
+    <div class="dbody" id="dlgBody"></div>
+    <div class="dfoot" id="dlgFoot"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ================================================================
+   RASTREABILIDADE — Bloco 4
+   Reescrita v4. Mesmo banco, mesmas coleções e campos da v3.
+   Campos novos são aditivos: criadoEm, atualizadoEm, evento.ts
+   ================================================================ */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAzNjPtB65aEMPQmtxc5HLGLMjDMatL0ME",
+  authDomain: "rastreabilidade-estoque.firebaseapp.com",
+  projectId: "rastreabilidade-estoque",
+  storageBucket: "rastreabilidade-estoque.firebasestorage.app",
+  messagingSenderId: "893203751411",
+  appId: "1:893203751411:web:79898b1fd161c3c11af286",
+  measurementId: "G-RJ61XCM5MZ"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+const FV   = firebase.firestore.FieldValue;
+
+/* Cache offline: o galpão costuma ter wi-fi irregular.
+   Com isso o app continua lendo e enfileira as gravações. */
+db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+
+/* ---------------- estado ---------------- */
+const S = {
+  user:null, perfil:"", nome:"", telas:{}, acoes:{},
+  produtos:[], ativas:[], encerradas:[], encerradasCarregadas:false,
+  view:"painel", grupo:[], caixa:null, voltarPara:"estoque",
+  sel:new Set(), selEscopo:"",
+  filtros:{}, ordem:{}, ruas:null, unsub:[]
+};
+
+const STATUS = ["Estoque","Produção","Terceiros","RNC","Encerrado"];
+const FLUXO = {
+  "Estoque":  ["Produção","Terceiros","RNC"],
+  "Produção": ["Terceiros","RNC","Encerrado"],
+  "Terceiros":["Estoque","Produção","RNC"],
+  "RNC":      ["Estoque","Terceiros","Encerrado"],
+  "Encerrado":[]
+};
+const COR = {
+  "Estoque":"var(--st-estoque)","Produção":"var(--st-producao)",
+  "Terceiros":"var(--st-terceiros)","RNC":"var(--st-rnc)","Encerrado":"var(--st-encerrado)"
+};
+const VIEW_STATUS = {estoque:"Estoque",producao:"Produção",terceiros:"Terceiros",rnc:"RNC",encerradas:"Encerrado"};
+const VIEW_TELA   = {painel:"dashboard",estoque:"estoque",producao:"producao",terceiros:"terceiros",
+                     rnc:"rnc",encerradas:"encerradas",entrada:"novaCaixa",produtos:"produtos",equipe:"gerenciamento"};
+
+/* ================================================================
+   UTILITÁRIOS
+   ================================================================ */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+/* Escapa tudo que vem do banco antes de ir para innerHTML.
+   Sem isso, um lote chamado <img onerror=...> executa script. */
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function norm(v){ return String(v ?? "").trim().replace(/\s+/g," ").toUpperCase(); }
+function agora(){ return new Date().toISOString(); }
+
+/* Aceita ISO novo e o "dd/mm/aaaa hh:mm:ss" gravado pela v3. */
+function paraData(v){
+  if(!v) return null;
+  if(v instanceof Date) return v;
+  if(typeof v === "object" && v.toDate) return v.toDate();
+  const s = String(v);
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})[,\s]+(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if(br) return new Date(+br[3], +br[2]-1, +br[1], +br[4], +br[5], +(br[6]||0));
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+function fmtData(v){
+  const d = paraData(v);
+  if(!d) return String(v ?? "—");
+  return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+function ultimoMov(c){
+  const evs = c.eventos || [];
+  return paraData(c.atualizadoEm) || paraData(evs.length ? evs[evs.length-1].ts || evs[evs.length-1].data : null) || paraData(c.criadoEm);
+}
+function diasParada(c){
+  const d = ultimoMov(c);
+  return d ? Math.floor((Date.now() - d.getTime()) / 86400000) : 0;
+}
+
+/* ---------------- avisos ---------------- */
+function aviso(msg, tipo){
+  const el = document.createElement("div");
+  el.className = "toast" + (tipo ? " " + tipo : "");
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  $("#toasts").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transform="translateX(16px)"; setTimeout(()=>el.remove(),200); }, 3600);
+}
+const ok  = m => aviso(m,"ok");
+const err = m => aviso(m,"err");
+
+/* ---------------- diálogo genérico (substitui alert/confirm/prompt) ---------------- */
+let dlgResolve = null;
+function abrirDlg({titulo, corpo, botoes}){
+  $("#dlgTitle").textContent = titulo;
+  $("#dlgBody").innerHTML = corpo;
+  const foot = $("#dlgFoot"); foot.innerHTML = "";
+  (botoes||[]).forEach(b=>{
+    const btn = document.createElement("button");
+    btn.className = "btn " + (b.classe||"");
+    btn.textContent = b.texto;
+    btn.onclick = () => b.acao ? b.acao() : fecharDlg();
+    foot.appendChild(btn);
+  });
+  $("#scrim").classList.add("on");
+  const primeiro = $("#dlgBody input, #dlgBody select, #dlgBody textarea");
+  if(primeiro) setTimeout(()=>primeiro.focus(),60);
+}
+function fecharDlg(){ $("#scrim").classList.remove("on"); dlgResolve = null; }
+$("#dlgX").onclick = fecharDlg;
+$("#scrim").addEventListener("click", e => { if(e.target.id === "scrim") fecharDlg(); });
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){ fecharDlg(); fecharFiltro(); }
+});
+
+function confirmar(titulo, texto, rotulo="Confirmar", perigo=false){
+  return new Promise(res=>{
+    abrirDlg({
+      titulo,
+      corpo:`<p style="margin:0;color:var(--ink-2)">${esc(texto)}</p>`,
+      botoes:[
+        {texto:"Cancelar", acao:()=>{ fecharDlg(); res(false); }},
+        {texto:rotulo, classe: perigo ? "btn-danger" : "btn-primary", acao:()=>{ fecharDlg(); res(true); }}
+      ]
+    });
+  });
+}
+function pedirTexto(titulo, rotulo, {obrigatorio=true, placeholder="", valor=""}={}){
+  return new Promise(res=>{
+    abrirDlg({
+      titulo,
+      corpo:`<div class="field" style="margin:0">
+               <label for="dlgIn">${esc(rotulo)}</label>
+               <input class="inp" id="dlgIn" value="${esc(valor)}" placeholder="${esc(placeholder)}">
+               <p id="dlgInErr" style="display:none;margin:8px 0 0;font-size:13px;color:#ff8b8f">Campo obrigatório.</p>
+             </div>`,
+      botoes:[
+        {texto:"Cancelar", acao:()=>{ fecharDlg(); res(null); }},
+        {texto:"Confirmar", classe:"btn-primary", acao:()=>{
+          const v = $("#dlgIn").value.trim();
+          if(obrigatorio && !v){ $("#dlgInErr").style.display="block"; return; }
+          fecharDlg(); res(v);
+        }}
+      ]
+    });
+    $("#dlgIn").addEventListener("keydown", e=>{
+      if(e.key === "Enter"){ e.preventDefault(); $("#dlgFoot").lastChild.click(); }
+    });
+  });
+}
+
+/* ================================================================
+   PERMISSÕES
+   ================================================================ */
+function pTela(t){ return S.telas && S.telas[t] === true; }
+/* fallback: perfis antigos no Firestore não têm a chave nova
+   "enviarTerceiros" — nesse caso cai na regra genérica antiga. */
+function pAcao(a, fallback){
+  if(S.acoes && a in S.acoes) return S.acoes[a] === true;
+  return fallback ? pAcao(fallback) : false;
+}
+function podeMover(para){
+  if(para === "Encerrado")  return pAcao("encerrar");
+  if(para === "Terceiros")  return pAcao("enviarTerceiros","alterarStatus");
+  return pAcao("alterarStatus");
+}
+function motivoBloqueio(para){
+  if(para === "Encerrado") return "Seu perfil não pode encerrar caixas.";
+  if(para === "Terceiros") return "Seu perfil não pode enviar caixas para terceiros.";
+  return "Seu perfil não pode alterar o status.";
+}
+
+const PERFIS = {
+  "ADM":{
+    telas:{dashboard:1,estoque:1,novaCaixa:1,produtos:1,producao:1,terceiros:1,rnc:1,encerradas:1,gerenciamento:1},
+    acoes:{alterarEndereco:1,alterarStatus:1,enviarTerceiros:1,cadastrarCaixa:1,cadastrarProduto:1,
+           editarProduto:1,encerrar:1,excluirProduto:1,gerenciarUsuarios:1,observacao:1,visualizar:1}
+  },
+  "Estoque":{
+    telas:{dashboard:1,estoque:1,novaCaixa:1,produtos:1,producao:1,terceiros:1,rnc:1,encerradas:1},
+    acoes:{alterarEndereco:1,alterarStatus:1,enviarTerceiros:1,cadastrarCaixa:1,cadastrarProduto:1,
+           editarProduto:1,encerrar:1,excluirProduto:1,observacao:1,visualizar:1}
+  },
+  "Produção":{
+    telas:{producao:1},
+    acoes:{encerrar:1,observacao:1,visualizar:1}
+  },
+  "Qualidade":{
+    /* Qualidade decide destino de não conformidade, mas não vende. */
+    telas:{producao:1,rnc:1},
+    acoes:{alterarStatus:1,enviarTerceiros:0,encerrar:1,observacao:1,visualizar:1}
+  },
+  "SupplyChain":{
+    telas:{dashboard:1,estoque:1,producao:1,terceiros:1,rnc:1,encerradas:1},
+    acoes:{encerrar:1,observacao:1,visualizar:1}
+  },
+  "Comercial":{
+    telas:{estoque:1,terceiros:1},
+    acoes:{visualizar:1}
+  },
+  "Visualizador":{
+    telas:{dashboard:1,estoque:1,rnc:1,terceiros:1,encerradas:1},
+    acoes:{visualizar:1}
+  }
+};
+function permissoesDe(perfil){
+  const baseT = {dashboard:false,estoque:false,novaCaixa:false,produtos:false,producao:false,
+                 terceiros:false,rnc:false,encerradas:false,gerenciamento:false};
+  const baseA = {alterarEndereco:false,alterarStatus:false,enviarTerceiros:false,cadastrarCaixa:false,
+                 cadastrarProduto:false,editarProduto:false,encerrar:false,excluirProduto:false,
+                 gerenciarUsuarios:false,observacao:false,visualizar:false};
+  const cfg = PERFIS[perfil];
+  if(!cfg) return {telas:baseT, acoes:baseA};
+  const telas = {...baseT}, acoes = {...baseA};
+  Object.keys(cfg.telas).forEach(k => telas[k] = !!cfg.telas[k]);
+  Object.keys(cfg.acoes).forEach(k => acoes[k] = !!cfg.acoes[k]);
+  return {telas, acoes};
+}
+
+/* ================================================================
+   AUTENTICAÇÃO
+   ================================================================ */
+$("#loginForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const email = $("#loginEmail").value.trim();
+  const senha = $("#loginSenha").value;
+  const btn = $("#btnLogin");
+  btn.disabled = true; btn.textContent = "Entrando...";
+  $("#loginErr").style.display = "none";
+  auth.signInWithEmailAndPassword(email, senha).catch(e2 => {
+    const msgs = {
+      "auth/invalid-credential":"E-mail ou senha incorretos.",
+      "auth/wrong-password":"E-mail ou senha incorretos.",
+      "auth/user-not-found":"Não existe conta com esse e-mail.",
+      "auth/too-many-requests":"Muitas tentativas. Aguarde alguns minutos.",
+      "auth/network-request-failed":"Sem conexão. Verifique a rede."
+    };
+    $("#loginErr").textContent = msgs[e2.code] || "Não foi possível entrar. Tente de novo.";
+    $("#loginErr").style.display = "block";
+    btn.disabled = false; btn.textContent = "Entrar";
+  });
+});
+
+auth.onAuthStateChanged(user => {
+  if(user){ S.user = user; carregarPerfil(); }
+  else {
+    S.unsub.forEach(f => f && f()); S.unsub = [];
+    $("#app").classList.remove("on");
+    $("#login").style.display = "grid";
+    $("#btnLogin").disabled = false; $("#btnLogin").textContent = "Entrar";
+    $("#loginSenha").value = "";
+  }
+});
+
+$("#btnSair").onclick = async () => {
+  if(await confirmar("Sair da conta","Você vai precisar entrar de novo para acessar o sistema.","Sair")) auth.signOut();
+};
+
+function carregarPerfil(){
+  db.collection("usuario").doc(S.user.email).get().then(doc => {
+    if(!doc.exists){
+      abrirDlg({titulo:"Acesso não liberado",
+        corpo:`<p style="margin:0;color:var(--ink-2)">A conta <b>${esc(S.user.email)}</b> autenticou, mas não tem cadastro de permissões. Peça ao administrador para criar o acesso.</p>`,
+        botoes:[{texto:"Entendi", classe:"btn-primary", acao:()=>{ fecharDlg(); auth.signOut(); }}]});
+      return;
+    }
+    const d = doc.data();
+    if(d.ativo === false){
+      abrirDlg({titulo:"Acesso desativado",
+        corpo:`<p style="margin:0;color:var(--ink-2)">Este usuário está marcado como inativo. Fale com o administrador.</p>`,
+        botoes:[{texto:"Entendi", classe:"btn-primary", acao:()=>{ fecharDlg(); auth.signOut(); }}]});
+      return;
+    }
+    S.perfil = d.perfil || "Visualizador";
+    S.nome   = d.nome || (d.email || S.user.email).split("@")[0];
+    S.telas  = d.telas || {};
+    S.acoes  = d.acoes || {};
+
+    $("#whoNome").textContent = S.nome;
+    $("#whoPerfil").textContent = S.perfil;
+    $("#whoAv").textContent = S.nome.trim().charAt(0).toUpperCase() || "?";
+
+    $("#login").style.display = "none";
+    $("#app").classList.add("on");
+    montarNavegacao();
+    assinarDados();
+    ir(primeiraTelaPermitida());
+  }).catch(e => {
+    err("Não foi possível carregar suas permissões.");
+    console.error(e);
+    auth.signOut();
+  });
+}
+
+function primeiraTelaPermitida(){
+  const ordem = ["painel","estoque","producao","terceiros","rnc","encerradas","produtos","entrada","equipe"];
+  return ordem.find(v => pTela(VIEW_TELA[v])) || "painel";
+}
+
+/* ================================================================
+   SINCRONIZAÇÃO
+   Só as caixas ATIVAS ficam em tempo real. Encerradas crescem para
+   sempre — carregar todas em todo login sai caro e devagar.
+   ================================================================ */
+function assinarDados(){
+  S.unsub.push(db.collection("produtos").onSnapshot(snap => {
+    S.produtos = snap.docs.map(d => d.data()).sort((a,b)=>String(a.codigo).localeCompare(String(b.codigo)));
+    if(S.view === "produtos" || S.view === "entrada") desenhar();
+  }, e => err("Falha ao sincronizar produtos.")));
+
+  S.unsub.push(db.collection("caixas")
+    .where("status","in",["Estoque","Produção","Terceiros","RNC"])
+    .onSnapshot(snap => {
+      S.ativas = snap.docs.map(d => d.data());
+      marcarConexao(true);
+      atualizarContadores();
+      if(S.view === "caixa") refrescarCaixaAberta();
+      else if(S.view !== "encerradas") desenhar();
+    }, e => { marcarConexao(false); err("Sincronização interrompida."); console.error(e); }));
+
+  db.collection("configuracoes").doc("empresa").get().then(d=>{
+    if(d.exists && Array.isArray(d.data().ruas)) S.ruas = d.data().ruas;
+    if(S.view === "painel") desenhar();
+  }).catch(()=>{});
+}
+
+async function carregarEncerradas(force){
+  if(S.encerradasCarregadas && !force) return;
+  try{
+    const snap = await db.collection("caixas").where("status","==","Encerrado").limit(600).get();
+    S.encerradas = snap.docs.map(d => d.data())
+      .sort((a,b)=>(ultimoMov(b)?.getTime()||0)-(ultimoMov(a)?.getTime()||0));
+    S.encerradasCarregadas = true;
+  }catch(e){ err("Falha ao carregar encerradas."); }
+}
+
+function todas(){ return S.ativas.concat(S.encerradas); }
+function porStatus(st){ return st === "Encerrado" ? S.encerradas : S.ativas.filter(c => c.status === st); }
+function acharCaixa(sn){ return todas().find(c => c.sn === sn); }
+
+function marcarConexao(on){
+  const el = $("#conn");
+  el.classList.toggle("off", !on);
+  el.lastElementChild.textContent = on ? "Sincronizado" : "Sem conexão";
+}
+window.addEventListener("offline", ()=>marcarConexao(false));
+window.addEventListener("online",  ()=>marcarConexao(true));
+
+function atualizarContadores(){
+  $$("[data-tally]").forEach(el => {
+    el.textContent = S.ativas.filter(c => c.status === el.dataset.tally).length;
+  });
+}
+
+/* ================================================================
+   NAVEGAÇÃO
+   ================================================================ */
+function montarNavegacao(){
+  $$("#nav .navitem").forEach(b => {
+    b.style.display = pTela(b.dataset.tela) ? "flex" : "none";
+    b.onclick = () => ir(b.dataset.view);
+  });
+  $$("#nav .grp").forEach(g => {
+    let n = g.nextElementSibling, algum = false;
+    while(n && n.classList.contains("navitem")){ if(n.style.display !== "none") algum = true; n = n.nextElementSibling; }
+    g.style.display = algum ? "block" : "none";
+  });
+
+  const icones = {painel:"▦",estoque:"▪",producao:"▪",terceiros:"▪",rnc:"▪",encerradas:"▪",entrada:"＋",produtos:"◇",equipe:"◈"};
+  const curtos = {painel:"Painel",estoque:"Estoque",producao:"Produção",terceiros:"Terceiros",rnc:"RNC",encerradas:"Encerr.",entrada:"Entrada",produtos:"Produtos",equipe:"Equipe"};
+  $("#tabbar").innerHTML = Object.keys(VIEW_TELA)
+    .filter(v => pTela(VIEW_TELA[v]))
+    .map(v => `<button data-view="${v}"><span class="ic">${icones[v]}</span>${curtos[v]}</button>`).join("");
+  $$("#tabbar button").forEach(b => b.onclick = () => ir(b.dataset.view));
+}
+
+async function ir(view, opts){
+  const tela = VIEW_TELA[view];
+  if(tela && !pTela(tela)){ err("Você não tem acesso a esta tela."); return; }
+  if(view !== "caixa"){ S.grupo = []; S.caixa = null; }
+  limparSelecao();
+  fecharFiltro();
+  S.view = view;
+  if(view === "encerradas") await carregarEncerradas();
+  $$("#nav .navitem, #tabbar button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  window.scrollTo({top:0});
+  desenhar();
+}
+
+function desenhar(){
+  const v = $("#view");
+  switch(S.view){
+    case "painel":     v.innerHTML = telaPainel(); ligarPainel(); break;
+    case "produtos":   v.innerHTML = telaProdutos(); ligarProdutos(); break;
+    case "entrada":    v.innerHTML = telaEntrada(); ligarEntrada(); break;
+    case "equipe":     v.innerHTML = telaEquipe(); ligarEquipe(); break;
+    case "caixa":      v.innerHTML = telaCaixa(); ligarCaixa(); break;
+    default:           v.innerHTML = telaLista(S.view); ligarLista(S.view);
+  }
+}
+
+/* ================================================================
+   TELA: PAINEL — planta do Bloco 4
+   ================================================================ */
+function ruasConfig(){
+  if(S.ruas && S.ruas.length) return S.ruas;
+  return Array.from({length:12},(_,i)=>({n:i+1, cap:(i===0||i===11)?16:22}));
+}
+function ocupacaoPorRua(){
+  const mapa = {};
+  ruasConfig().forEach(r => mapa[r.n] = {cap:r.cap, estoque:0, terceiros:0});
+  S.ativas.forEach(c => {
+    if(c.status !== "Estoque" && c.status !== "Terceiros") return;
+    const m = String(c.endereco||"").toUpperCase().match(/RUA\s*0*(\d+)/);
+    if(!m) return;
+    const n = +m[1];
+    if(mapa[n]) mapa[n][c.status === "Estoque" ? "estoque" : "terceiros"]++;
+  });
+  return mapa;
+}
+
+function telaPainel(){
+  const mapa = ocupacaoPorRua();
+  const semEnd = S.ativas.filter(c => (c.status==="Estoque"||c.status==="Terceiros") && !String(c.endereco||"").trim());
+  const paradas = S.ativas.filter(c => diasParada(c) >= 15);
+  const totalCap = Object.values(mapa).reduce((a,r)=>a+r.cap,0);
+  const totalOcup = Object.values(mapa).reduce((a,r)=>a+r.estoque+r.terceiros,0);
+
+  const kpi = (k,lbl,val,cap) =>
+    `<div class="kpi" data-k="${k}"><div class="lbl">${lbl}</div><div class="val">${val}</div><div class="cap">${cap}</div></div>`;
+
+  const racks = ruasConfig().map(r => {
+    const d = mapa[r.n], usados = d.estoque + d.terceiros;
+    const pct = Math.round(usados / d.cap * 100);
+    const slots = [];
+    for(let i=0;i<d.cap;i++){
+      let cls = "";
+      if(i < d.estoque) cls = "f-estoque";
+      else if(i < usados) cls = "f-terceiros";
+      slots.push(`<div class="slot ${cls}"></div>`);
+    }
+    if(usados > d.cap) slots.push(`<div class="slot f-over" title="Acima da capacidade"></div>`);
+    return `<button class="rua ${pct>=85?"hot":""}" data-rua="${r.n}" title="RUA ${r.n} — ${usados} de ${d.cap} posições">
+      <div class="rack">${slots.join("")}</div>
+      <div class="tag">RUA ${String(r.n).padStart(2,"0")}</div>
+      <div class="pct">${usados}/${d.cap} · ${pct}%</div>
+    </button>`;
+  }).join("");
+
+  return `
+  <div class="pagehead">
+    <div>
+      <div class="eyebrow">Bloco 4 — planta de ocupação</div>
+      <h2>Painel</h2>
+      <div class="sub">Cada quadradinho é uma posição real de rack. Toque na rua para ver as caixas.</div>
+    </div>
+    <div class="acts"><button class="btn btn-sm" data-act="exportar-tudo">Exportar CSV</button></div>
+  </div>
+
+  <div class="kpis">
+    ${kpi("Estoque","Estoque",  porStatus("Estoque").length,   "caixas disponíveis")}
+    ${kpi("Produção","Produção",porStatus("Produção").length,  "em linha")}
+    ${kpi("Terceiros","Terceiros",porStatus("Terceiros").length,"com clientes")}
+    ${kpi("RNC","RNC",          porStatus("RNC").length,       "não conformes")}
+    ${kpi("Parada","Sem giro",  paradas.length,                "paradas há 15+ dias")}
+  </div>
+
+  <div class="panel">
+    <h3>Ocupação do bloco</h3>
+    <p class="hint">${totalOcup} de ${totalCap} posições ocupadas · ${totalCap?Math.round(totalOcup/totalCap*100):0}% do bloco</p>
+    <div class="blocomap">${racks}</div>
+    <div class="legend">
+      <span><i style="background:var(--st-estoque)"></i>Disponível em estoque</span>
+      <span><i style="background:var(--st-terceiros)"></i>Vendido, ainda no rack</span>
+      <span><i style="background:var(--panel-2)"></i>Posição livre</span>
+    </div>
+    <button class="loose" data-act="sem-endereco">
+      <div>
+        <div class="eyebrow" style="color:var(--amber)">Pendência</div>
+        <div style="font-weight:600;margin-top:2px">Caixas sem endereço definido</div>
+        <div style="font-size:13px;color:var(--mute)">Entraram no sistema mas não foram alocadas em nenhuma rua.</div>
+      </div>
+      <div class="n">${semEnd.length}</div>
+    </button>
+  </div>
+
+  ${paradas.length ? `
+  <div class="panel">
+    <h3>Sem movimentação</h3>
+    <p class="hint">Caixas ativas paradas há 15 dias ou mais, da mais antiga para a mais recente.</p>
+    ${tabelaSimples(paradas.slice().sort((a,b)=>diasParada(b)-diasParada(a)).slice(0,20), true)}
+  </div>` : ""}
+  `;
+}
+
+function ligarPainel(){
+  $$("[data-rua]").forEach(b => b.onclick = () => verRua(+b.dataset.rua));
+  const semEnd = $('[data-act="sem-endereco"]');
+  if(semEnd) semEnd.onclick = () => verSemEndereco();
+  const exp = $('[data-act="exportar-tudo"]');
+  if(exp) exp.onclick = () => exportarCSV(todas(), "rastreabilidade-completo");
+  ligarLinhasSN();
+}
+
+function tabelaSimples(lista, comIdade){
+  if(!lista.length) return `<div class="empty"><p>Nada por aqui.</p></div>`;
+  return `<div class="tablewrap"><table>
+    <thead><tr><th><div class="th">SN</div></th><th><div class="th">Produto</div></th>
+    <th><div class="th">Lote</div></th><th><div class="th">Endereço</div></th>
+    <th><div class="th">Status</div></th>${comIdade?'<th><div class="th">Parada há</div></th>':""}</tr></thead>
+    <tbody>${lista.map(c => `<tr class="clickable" data-sn="${esc(c.sn)}">
+      <td><span class="sn">${esc(c.sn)}</span></td>
+      <td>${esc(c.descricao||"—")}</td>
+      <td class="mono" style="font-size:13px">${esc(c.lote||"—")}</td>
+      <td>${esc(c.endereco||"—")}</td>
+      <td><span class="pill s-${esc(c.status)}">${esc(c.status)}</span></td>
+      ${comIdade?`<td class="qtd">${diasParada(c)} d</td>`:""}
+    </tr>`).join("")}</tbody></table></div>`;
+}
+function ligarLinhasSN(escopo){
+  (escopo||document).querySelectorAll("tr[data-sn]").forEach(tr => {
+    tr.onclick = () => abrirCaixa(tr.dataset.sn);
+  });
+}
+
+function verRua(n){
+  const lista = S.ativas.filter(c => {
+    const m = String(c.endereco||"").toUpperCase().match(/RUA\s*0*(\d+)/);
+    return m && +m[1] === n;
+  });
+  abrirDlg({
+    titulo:`RUA ${String(n).padStart(2,"0")} — ${lista.length} caixa(s)`,
+    corpo: tabelaSimples(lista),
+    botoes:[{texto:"Fechar", acao:fecharDlg}]
+  });
+  $("#dlgBody").querySelectorAll("tr[data-sn]").forEach(tr => {
+    tr.onclick = () => { const sn = tr.dataset.sn; fecharDlg(); abrirCaixa(sn); };
+  });
+}
+function verSemEndereco(){
+  const lista = S.ativas.filter(c => (c.status==="Estoque"||c.status==="Terceiros") && !String(c.endereco||"").trim());
+  abrirDlg({
+    titulo:`Sem endereço — ${lista.length} caixa(s)`,
+    corpo: lista.length ? tabelaSimples(lista)
+      : `<div class="empty"><div class="big">✓</div><h4>Tudo endereçado</h4><p>Nenhuma caixa ativa está sem posição no bloco.</p></div>`,
+    botoes:[{texto:"Fechar", acao:fecharDlg}]
+  });
+  $("#dlgBody").querySelectorAll("tr[data-sn]").forEach(tr => {
+    tr.onclick = () => { const sn = tr.dataset.sn; fecharDlg(); abrirCaixa(sn); };
+  });
+}
+
+/* ================================================================
+   TELA: LISTAS DE STATUS (agrupadas)
+   ================================================================ */
+const COLUNAS = [
+  {k:"codigo",    t:"Código"},
+  {k:"descricao", t:"Produto"},
+  {k:"lote",      t:"Lote"},
+  {k:"qtd",       t:"Caixas", num:true, semFiltro:true},
+  {k:"endereco",  t:"Endereço"},
+  {k:"origem",    t:"Origem"},
+  {k:"idade",     t:"Parada há", num:true, semFiltro:true}
+];
+
+function agrupar(status){
+  const mapa = new Map();
+  porStatus(status).forEach(c => {
+    const chave = [c.codigo,c.lote,c.endereco||"",c.origem||""].join("\u0001");
+    if(!mapa.has(chave)) mapa.set(chave, {chave, codigo:c.codigo, descricao:c.descricao,
+      lote:c.lote, endereco:c.endereco||"", origem:c.origem||"", caixas:[]});
+    mapa.get(chave).caixas.push(c);
+  });
+  return Array.from(mapa.values()).map(g => ({
+    ...g, qtd:g.caixas.length, idade:Math.max(...g.caixas.map(diasParada))
+  }));
+}
+function aplicarFiltrosOrdem(view, grupos){
+  const f = S.filtros[view] || {};
+  let out = grupos.filter(g => Object.keys(f).every(col => {
+    const vals = f[col]; if(!vals || !vals.length) return true;
+    return vals.includes(String(g[col] ?? "") || "—");
+  }));
+  const o = S.ordem[view];
+  if(o){
+    out.sort((a,b)=>{
+      const va=a[o.col], vb=b[o.col];
+      const r = (typeof va === "number") ? va-vb : String(va).localeCompare(String(vb),"pt-BR");
+      return o.dir === "desc" ? -r : r;
+    });
+  }
+  return out;
+}
+
+function telaLista(view){
+  const status = VIEW_STATUS[view];
+  const grupos = aplicarFiltrosOrdem(view, agrupar(status));
+  const total  = grupos.reduce((a,g)=>a+g.qtd,0);
+  const filtrosAtivos = Object.values(S.filtros[view]||{}).some(v => v && v.length);
+
+  const legendas = {
+    Estoque:"Disponível no bloco, pronto para uso ou venda.",
+    "Produção":"Em uso na linha. Encerre a caixa quando o material acabar.",
+    Terceiros:"Vendido ou em poder de cliente.",
+    RNC:"Não conformidade aberta. Precisa de decisão da qualidade.",
+    Encerrado:"Histórico. Somente consulta."
+  };
+
+  const cabecalho = COLUNAS.map(c => {
+    const o = S.ordem[view];
+    const ativo = S.filtros[view] && S.filtros[view][c.k] && S.filtros[view][c.k].length;
+    return `<th class="${o&&o.col===c.k?"sorted":""}"><div class="th">
+      <button class="sortable" data-sort="${c.k}">${c.t}<span class="arrow">${o&&o.col===c.k&&o.dir==="desc"?"▼":"▲"}</span></button>
+      ${c.semFiltro?"":`<button class="fbtn ${ativo?"on":""}" data-filtro="${c.k}" title="Filtrar">▼</button>`}
+    </div></th>`;
+  }).join("");
+
+  const linhas = grupos.map(g => `
+    <tr class="clickable" data-grupo="${encodeURIComponent(g.chave)}">
+      <td class="colsel" data-nosel><input type="checkbox" data-pick="${encodeURIComponent(g.chave)}"></td>
+      <td class="mono" style="font-size:13px">${esc(g.codigo)}</td>
+      <td>${esc(g.descricao||"—")}</td>
+      <td class="mono" style="font-size:13px">${esc(g.lote||"—")}</td>
+      <td class="qtd">${g.qtd}</td>
+      <td>${esc(g.endereco||"—")}</td>
+      <td>${esc(g.origem||"—")}</td>
+      <td class="qtd" style="color:${g.idade>=15?"var(--amber)":"var(--mute)"}">${g.idade} d</td>
+    </tr>`).join("");
+
+  const vazio = status === "Encerrado"
+    ? `<div class="empty"><div class="big">▤</div><h4>Nenhuma caixa encerrada</h4><p>Quando uma caixa é consumida ou descartada ela aparece aqui.</p></div>`
+    : `<div class="empty"><div class="big">▢</div><h4>Nada em ${esc(status)}</h4><p>${filtrosAtivos?"Nenhum grupo passa pelos filtros aplicados. Limpe os filtros para ver tudo.":"Assim que houver caixas neste status elas aparecem aqui."}</p></div>`;
+
+  return `
+  <div class="pagehead">
+    <div>
+      <div class="eyebrow">Fluxo</div>
+      <h2>${esc(status === "Encerrado" ? "Encerradas" : status)}</h2>
+      <div class="sub">${legendas[status]}</div>
+    </div>
+    <div class="acts">
+      ${filtrosAtivos?`<button class="btn btn-sm" data-act="limpar-filtros">Limpar filtros</button>`:""}
+      <button class="btn btn-sm" data-act="exportar">Exportar CSV</button>
+    </div>
+  </div>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+    <div class="kpi" data-k="${esc(status)}"><div class="lbl">Caixas</div><div class="val">${total}</div><div class="cap">${grupos.length} agrupamento(s)</div></div>
+  </div>
+
+  ${grupos.length ? `<div class="tablewrap"><table>
+    <thead><tr><th class="colsel"><div class="th"><input type="checkbox" id="pickAll" title="Selecionar tudo"></div></th>${cabecalho}</tr></thead>
+    <tbody>${linhas}</tbody>
+  </table></div>` : vazio}
+  `;
+}
+
+function ligarLista(view){
+  const status = VIEW_STATUS[view];
+  $$("[data-sort]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const col = b.dataset.sort, o = S.ordem[view];
+    S.ordem[view] = (o && o.col === col && o.dir === "asc") ? {col,dir:"desc"} : {col,dir:"asc"};
+    desenhar();
+  });
+  $$("[data-filtro]").forEach(b => b.onclick = e => { e.stopPropagation(); abrirFiltro(view, b.dataset.filtro, b); });
+  $$("tr[data-grupo]").forEach(tr => tr.onclick = e => {
+    if(e.target.closest("[data-nosel]")) return;
+    abrirGrupo(view, decodeURIComponent(tr.dataset.grupo));
+  });
+  $$("[data-pick]").forEach(cb => cb.onchange = () => {
+    S.selEscopo = "grupo:" + view;
+    const g = agrupar(status).find(x => x.chave === decodeURIComponent(cb.dataset.pick));
+    if(!g) return;
+    g.caixas.forEach(c => cb.checked ? S.sel.add(c.sn) : S.sel.delete(c.sn));
+    cb.closest("tr").classList.toggle("picked", cb.checked);
+    atualizarBarraSelecao();
+  });
+  const all = $("#pickAll");
+  if(all) all.onchange = () => {
+    S.selEscopo = "grupo:" + view;
+    $$("[data-pick]").forEach(cb => { cb.checked = all.checked; cb.onchange(); });
+  };
+  const lf = $('[data-act="limpar-filtros"]');
+  if(lf) lf.onclick = () => { S.filtros[view] = {}; desenhar(); };
+  const ex = $('[data-act="exportar"]');
+  if(ex) ex.onclick = () => {
+    const chaves = aplicarFiltrosOrdem(view, agrupar(status)).map(g => g.chave);
+    const set = new Set(chaves);
+    const lista = porStatus(status).filter(c => set.has([c.codigo,c.lote,c.endereco||"",c.origem||""].join("\u0001")));
+    exportarCSV(lista, "rastreabilidade-" + view);
+  };
+}
+
+function abrirGrupo(view, chave){
+  const g = agrupar(VIEW_STATUS[view]).find(x => x.chave === chave);
+  if(!g) return;
+  S.grupo = g.caixas.slice().sort((a,b)=>String(a.sn).localeCompare(String(b.sn)));
+  S.caixa = S.grupo.length === 1 ? S.grupo[0] : null;
+  S.voltarPara = view;
+  S.view = "caixa";
+  assinaturaCaixa = "";
+  limparSelecao();
+  $$("#nav .navitem, #tabbar button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  window.scrollTo({top:0});
+  desenhar();
+}
+function abrirCaixa(sn){
+  const c = acharCaixa(sn);
+  if(!c){ err("SN não encontrado entre as caixas carregadas."); return; }
+  S.grupo = [c]; S.caixa = c; assinaturaCaixa = "";
+  if(!VIEW_STATUS[S.voltarPara]) S.voltarPara = "estoque";
+  S.view = "caixa";
+  limparSelecao();
+  window.scrollTo({top:0});
+  desenhar();
+}
+let assinaturaCaixa = "";
+function refrescarCaixaAberta(){
+  if(S.caixa){ const nova = acharCaixa(S.caixa.sn); if(nova) S.caixa = nova; }
+  S.grupo = S.grupo.map(c => acharCaixa(c.sn) || c);
+  const nova = JSON.stringify(S.grupo.map(c => [c.sn,c.status,c.endereco,c.origem,(c.eventos||[]).length]));
+  if(nova === assinaturaCaixa) return;   /* nada mudou: não redesenha por cima do que a pessoa digita */
+  assinaturaCaixa = nova;
+  desenhar();
+}
+
+/* ================================================================
+   TELA: CAIXA (detalhe + histórico)
+   ================================================================ */
+function telaCaixa(){
+  const c = S.caixa;
+  const multi = S.grupo.length > 1;
+
+  const listaSN = S.grupo.map(x => `
+    <div class="snrow ${c && x.sn===c.sn?"on":""}">
+      <input type="checkbox" data-pick-sn="${esc(x.sn)}" ${S.sel.has(x.sn)?"checked":""}>
+      <button class="snpick" data-sn="${esc(x.sn)}">
+        <span class="code">${esc(x.sn)}</span>
+        <span class="pill s-${esc(x.status)}">${esc(x.status)}</span>
+      </button>
+    </div>`).join("");
+
+  const detalhe = c ? blocoDetalhe(c) : `
+    <div class="panel"><div class="empty">
+      <div class="big">☜</div><h4>Escolha uma caixa</h4>
+      <p>Selecione um SN na lista ao lado para ver o histórico e liberar as ações. Para mover várias de uma vez, marque as caixinhas e use a barra que aparece embaixo.</p>
+    </div></div>`;
+
+  return `
+  <div class="pagehead">
+    <div>
+      <div class="eyebrow">${esc(S.grupo[0]?.codigo || "")} · lote ${esc(S.grupo[0]?.lote || "—")}</div>
+      <h2>${S.grupo.length} caixa${S.grupo.length>1?"s":""} no grupo</h2>
+      <div class="sub">${esc(S.grupo[0]?.descricao || "")}</div>
+    </div>
+    <div class="acts"><button class="btn btn-sm" data-act="voltar">← Voltar</button></div>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <h3>Séries</h3>
+      <p class="hint">${multi?"Marque para agir em lote.":"Uma caixa neste grupo."}</p>
+      <div class="snlist">${listaSN}</div>
+    </div>
+    <div>${detalhe}</div>
+  </div>`;
+}
+
+function blocoDetalhe(c){
+  const encerrada = c.status === "Encerrado";
+  const eventos = (c.eventos||[]).slice().reverse();
+
+  const botoes = (FLUXO[c.status]||[]).map(destino => {
+    const liberado = podeMover(destino);
+    return `<button class="flowbtn" data-to="${esc(destino)}" ${liberado?"":`disabled title="${esc(motivoBloqueio(destino))}"`}>
+      <i style="background:${COR[destino]}"></i>Mover para ${esc(destino)}</button>`;
+  }).join("");
+
+  return `
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <h3 class="mono" style="font-size:22px;letter-spacing:.04em;user-select:text">${esc(c.sn)}</h3>
+      <span class="pill s-${esc(c.status)}">${esc(c.status)}</span>
+      <span style="margin-left:auto;font-size:13px;color:var(--mute)">Última movimentação há ${diasParada(c)} dia(s)</span>
+    </div>
+    <div class="specs">
+      <div class="spec"><div class="k">Produto</div><div class="v">${esc(c.descricao||"—")}</div></div>
+      <div class="spec"><div class="k">Código</div><div class="v mono">${esc(c.codigo||"—")}</div></div>
+      <div class="spec"><div class="k">Lote</div><div class="v mono">${esc(c.lote||"—")}</div></div>
+      <div class="spec"><div class="k">Endereço</div><div class="v">${esc(c.endereco||"Sem endereço")}</div></div>
+      <div class="spec"><div class="k">Origem</div><div class="v">${esc(c.origem||"—")}</div></div>
+    </div>
+  </div>
+
+  ${encerrada ? `
+  <div class="panel" style="border-left:2px solid var(--st-encerrado)">
+    <h3>Caixa encerrada</h3>
+    <p class="hint" style="margin:0">O ciclo terminou. O histórico fica disponível para consulta e auditoria, mas nenhuma ação pode ser feita.</p>
+  </div>` : `
+  <div class="panel">
+    <h3>Movimentar</h3>
+    <p class="hint">Toda mudança pede um motivo e entra no histórico com seu nome.</p>
+    <div class="flowbar">${botoes || '<span style="color:var(--mute);font-size:13.5px">Nenhum destino disponível a partir deste status.</span>'}</div>
+  </div>
+
+  <div class="panel">
+    <h3>Endereço</h3>
+    <p class="hint">Onde a caixa está fisicamente no bloco. Formato: BLC4RUA6.</p>
+    <div class="rowform">
+      <input class="inp mono" id="inEndereco" placeholder="BLC4RUA6" value="${esc(c.endereco||"")}" ${pAcao("alterarEndereco")?"":"disabled"}>
+      <button class="btn" id="btnEndereco" ${pAcao("alterarEndereco")?"":`disabled title="Seu perfil não altera endereço."`}>Salvar endereço</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Anotação</h3>
+    <p class="hint">Registre uma informação sem mudar o status da caixa.</p>
+    <div class="rowform">
+      <input class="inp" id="inObs" placeholder="Ex.: caixa reembalada, filme rompido no transporte" ${pAcao("observacao")?"":"disabled"}>
+      <button class="btn" id="btnObs" ${pAcao("observacao")?"":`disabled title="Seu perfil não registra anotações."`}>Registrar</button>
+    </div>
+  </div>`}
+
+  <div class="panel">
+    <h3>Histórico</h3>
+    <p class="hint">Do mais recente para o mais antigo. ${eventos.length} registro(s).</p>
+    <div class="tl">
+      ${eventos.length ? eventos.map((e,i) => `
+        <div class="ev ${i===0?"now":""}">
+          <div class="head"><span class="act">${esc(e.tipo||"Evento")}</span><span class="when">${esc(fmtData(e.ts||e.data))}</span></div>
+          <div class="by">${esc(e.nome || e.usuario || "—")}</div>
+          ${e.descricao||e.obs ? `<div class="note">${esc(e.descricao||e.obs)}</div>` : ""}
+        </div>`).join("")
+      : `<p style="color:var(--mute);font-size:13.5px">Sem eventos registrados.</p>`}
+    </div>
+  </div>`;
+}
+
+function ligarCaixa(){
+  $('[data-act="voltar"]').onclick = () => ir(S.voltarPara);
+  $$(".snpick").forEach(b => b.onclick = () => {
+    S.caixa = acharCaixa(b.dataset.sn) || S.grupo.find(x => x.sn === b.dataset.sn);
+    desenhar();
+  });
+  $$("[data-pick-sn]").forEach(cb => cb.onchange = () => {
+    S.selEscopo = "sn";
+    cb.checked ? S.sel.add(cb.dataset.pickSn) : S.sel.delete(cb.dataset.pickSn);
+    atualizarBarraSelecao();
+  });
+  $$(".flowbtn:not([disabled])").forEach(b => b.onclick = () => moverCaixas([S.caixa], b.dataset.to));
+  const be = $("#btnEndereco"); if(be) be.onclick = salvarEndereco;
+  const bo = $("#btnObs");      if(bo) bo.onclick = salvarObservacao;
+  const ie = $("#inEndereco");  if(ie) ie.addEventListener("keydown", e => { if(e.key==="Enter") salvarEndereco(); });
+  const io = $("#inObs");       if(io) io.addEventListener("keydown", e => { if(e.key==="Enter") salvarObservacao(); });
+}
+
+/* ================================================================
+   MUTAÇÕES
+   Gravação por campo + arrayUnion. A v3 fazia set() do objeto
+   inteiro: dois usuários mexendo na mesma caixa se sobrescreviam.
+   ================================================================ */
+function evento(tipo, descricao, obs){
+  return {
+    ts: agora(),
+    data: new Date().toLocaleString("pt-BR"),   /* mantém o formato antigo p/ compatibilidade */
+    tipo, descricao: descricao||"", obs: obs||"",
+    usuario: S.user.email, nome: S.nome
+  };
+}
+
+async function moverCaixas(lista, destino){
+  lista = lista.filter(Boolean);
+  if(!lista.length) return;
+  if(!podeMover(destino)){ err(motivoBloqueio(destino)); return; }
+
+  const invalidas = lista.filter(c => !(FLUXO[c.status]||[]).includes(destino));
+  if(invalidas.length){
+    err(`${invalidas.length} caixa(s) não podem ir para ${destino} a partir do status atual.`);
+    lista = lista.filter(c => (FLUXO[c.status]||[]).includes(destino));
+    if(!lista.length) return;
+  }
+
+  const rotulo = destino === "Terceiros" ? "Cliente que recebeu" : "Motivo";
+  const motivo = await pedirTexto(
+    `Mover ${lista.length} caixa(s) para ${destino}`, rotulo,
+    {placeholder: destino === "Terceiros" ? "Nome do cliente" : "Ex.: abastecimento da injetora 3"}
+  );
+  if(motivo === null) return;
+
+  const ev = evento(`Enviou para ${destino}`,
+                    destino === "Terceiros" ? `Cliente: ${motivo}` : motivo, motivo);
+  try{
+    await emLotes(lista, 400, chunk => {
+      const batch = db.batch();
+      chunk.forEach(c => {
+        const dados = {status:destino, atualizadoEm:agora(), eventos:FV.arrayUnion(ev)};
+        if(destino === "Terceiros") dados.origem = motivo;
+        batch.update(db.collection("caixas").doc(c.sn), dados);
+      });
+      return batch.commit();
+    });
+    ok(`${lista.length} caixa(s) movida(s) para ${destino}.`);
+    limparSelecao();
+  }catch(e){ console.error(e); err("Não foi possível concluir a movimentação."); }
+}
+
+async function salvarEndereco(){
+  const c = S.caixa; if(!c) return;
+  if(!pAcao("alterarEndereco")) return err("Seu perfil não altera endereço.");
+  const novo = norm($("#inEndereco").value);
+  if(!novo) return err("Informe o endereço.");
+  if(novo === norm(c.endereco)) return err("O endereço já é esse.");
+  try{
+    await db.collection("caixas").doc(c.sn).update({
+      endereco:novo, atualizadoEm:agora(),
+      eventos:FV.arrayUnion(evento("Alterou endereço", `${c.endereco||"sem endereço"} → ${novo}`))
+    });
+    ok("Endereço atualizado.");
+  }catch(e){ console.error(e); err("Não foi possível salvar o endereço."); }
+}
+
+async function salvarObservacao(){
+  const c = S.caixa; if(!c) return;
+  if(!pAcao("observacao")) return err("Seu perfil não registra anotações.");
+  const txt = $("#inObs").value.trim();
+  if(!txt) return err("Escreva a anotação antes de registrar.");
+  try{
+    await db.collection("caixas").doc(c.sn).update({
+      atualizadoEm:agora(),
+      eventos:FV.arrayUnion(evento("Anotação", txt, txt))
+    });
+    $("#inObs").value = "";
+    ok("Anotação registrada.");
+  }catch(e){ console.error(e); err("Não foi possível registrar."); }
+}
+
+/* Firestore aceita no máximo 500 operações por lote. */
+async function emLotes(itens, tam, fn){
+  for(let i=0;i<itens.length;i+=tam) await fn(itens.slice(i,i+tam));
+}
+
+/* ================================================================
+   TELA: ENTRADA DE CAIXAS
+   ================================================================ */
+function telaEntrada(){
+  return `
+  <div class="pagehead">
+    <div>
+      <div class="eyebrow">Cadastro</div>
+      <h2>Entrada de caixas</h2>
+      <div class="sub">Cada caixa recebe um SN próprio e sequencial. Ele nunca se repete.</div>
+    </div>
+  </div>
+  <div class="panel" style="max-width:620px">
+    <div class="field">
+      <label for="fProduto">Produto</label>
+      <input class="inp" id="fProduto" type="text" placeholder="Ex.: PET500">
+    </div>
+    <div class="field"><label for="fLote">Lote do fornecedor</label><input class="inp mono" id="fLote" placeholder="Ex.: L2607A"></div>
+    <div class="field"><label for="fQtd">Quantidade de caixas</label><input class="inp num" id="fQtd" type="number" min="1" max="500" value="1"></div>
+    <div class="field"><label for="fEnd">Endereço <span style="color:var(--mute);font-weight:400;letter-spacing:normal;text-transform:none">— opcional</span></label><input class="inp mono" id="fEnd" placeholder="BLC4RUA6"></div>
+    <div class="field"><label for="fOrigem">Origem <span style="color:var(--mute);font-weight:400;letter-spacing:normal;text-transform:none">— opcional</span></label><input class="inp" id="fOrigem" placeholder="Fornecedor"></div>
+    <button class="btn btn-primary btn-full" id="btnEntrada" style="margin-top:6px">Dar entrada</button>
+  </div>`;
+}
+function ligarEntrada(){
+  $("#btnEntrada").onclick = darEntrada;
+}
+
+/* Reserva a faixa de SNs numa transação. A v3 lia e escrevia
+   separadamente, uma vez por caixa: dois operadores cadastrando
+   ao mesmo tempo geravam o mesmo SN. */
+async function reservarSNs(qtd){
+  const ref = db.collection("configuracoes").doc("empresa");
+  return db.runTransaction(async tx => {
+    const doc = await tx.get(ref);
+    const ultimo = doc.exists ? (doc.data().ultimoSN || 0) : 0;
+    tx.set(ref, {ultimoSN: ultimo + qtd, ultimaAtualizacao: agora()}, {merge:true});
+    const lista = [];
+    for(let i = ultimo+1; i <= ultimo+qtd; i++) lista.push("PF" + String(i).padStart(5,"0"));
+    return lista;
+  });
+}
+
+async function darEntrada(){
+  if(!pAcao("cadastrarCaixa")) return err("Seu perfil não dá entrada de caixas.");
+  const codigo = $("#fProduto").value;
+  const lote   = norm($("#fLote").value);
+  const qtd    = parseInt($("#fQtd").value, 10);
+  const endereco = norm($("#fEnd").value);
+  const origem   = norm($("#fOrigem").value);
+
+  if(!codigo)  return err("Escolha o produto.");
+  if(!lote)    return err("Informe o lote.");
+  if(!qtd || qtd < 1 || qtd > 500) return err("Quantidade deve ser de 1 a 500.");
+  const produto = S.produtos.find(p => p.codigo === codigo);
+  if(!produto) return err("Produto não encontrado.");
+
+  const btn = $("#btnEntrada");
+  btn.disabled = true; btn.textContent = "Gerando SNs...";
+  try{
+    const sns = await reservarSNs(qtd);
+    const ev = evento("Entrada de caixa", `Lote ${lote}${origem?` · origem ${origem}`:""}`);
+    await emLotes(sns, 400, chunk => {
+      const batch = db.batch();
+      chunk.forEach(sn => batch.set(db.collection("caixas").doc(sn), {
+        sn, codigo:produto.codigo, descricao:produto.desc, lote, endereco, origem,
+        status:"Estoque", criadoEm:agora(), atualizadoEm:agora(), eventos:[ev]
+      }));
+      return batch.commit();
+    });
+    ok(`${qtd} caixa(s) cadastrada(s): ${sns[0]}${qtd>1?" a "+sns[sns.length-1]:""}.`);
+    $("#fLote").value = ""; $("#fQtd").value = "1"; $("#fEnd").value = ""; $("#fOrigem").value = "";
+    ir("estoque");
+  }catch(e){
+    console.error(e); err("Não foi possível dar entrada. Nenhum SN foi consumido.");
+  }finally{
+    btn.disabled = false; btn.textContent = "Dar entrada";
+  }
+}
+
+/* ================================================================
+   TELA: PRODUTOS
+   ================================================================ */
+function telaProdutos(){
+  return `
+  <div class="pagehead">
+    <div><div class="eyebrow">Cadastro</div><h2>Produtos</h2>
+    <div class="sub">Catálogo compartilhado. Toda caixa nasce vinculada a um produto daqui.</div></div>
+  </div>
+  ${pAcao("cadastrarProduto") ? `
+  <div class="panel" style="max-width:620px">
+    <h3>Novo produto</h3><p class="hint">O código vira a chave do produto e não pode se repetir.</p>
+    <div class="field"><label for="pCod">Código</label><input class="inp mono" id="pCod" placeholder="PET500"></div>
+    <div class="field"><label for="pDesc">Descrição</label><input class="inp" id="pDesc" placeholder="Pré-forma PET 500ml"></div>
+    <button class="btn btn-primary" id="btnProduto">Cadastrar produto</button>
+  </div>` : ""}
+  <div class="panel">
+    <h3>Catálogo</h3><p class="hint">${S.produtos.length} produto(s).</p>
+    ${S.produtos.length ? `<div class="tablewrap"><table>
+      <thead><tr><th><div class="th">Código</div></th><th><div class="th">Descrição</div></th>
+      <th><div class="th">Caixas ativas</div></th>${pAcao("excluirProduto")?'<th></th>':""}</tr></thead>
+      <tbody>${S.produtos.map(p => {
+        const n = S.ativas.filter(c => c.codigo === p.codigo).length;
+        return `<tr>
+          <td class="mono" style="font-size:13px">${esc(p.codigo)}</td>
+          <td>${esc(p.desc)}</td>
+          <td class="qtd">${n}</td>
+          ${pAcao("excluirProduto")?`<td style="text-align:right"><button class="btn btn-danger btn-sm" data-del="${esc(p.codigo)}" data-n="${n}">Excluir</button></td>`:""}
+        </tr>`;
+      }).join("")}</tbody></table></div>`
+    : `<div class="empty"><div class="big">◇</div><h4>Catálogo vazio</h4><p>Cadastre o primeiro produto para conseguir dar entrada de caixas.</p></div>`}
+  </div>`;
+}
+function ligarProdutos(){
+  const b = $("#btnProduto");
+  if(b) b.onclick = async () => {
+    const codigo = norm($("#pCod").value), desc = $("#pDesc").value.trim();
+    if(!codigo || !desc) return err("Preencha código e descrição.");
+    if(S.produtos.some(p => p.codigo === codigo)) return err(`O código ${codigo} já existe no catálogo.`);
+    try{
+      await db.collection("produtos").doc(codigo).set({codigo, desc});
+      $("#pCod").value = ""; $("#pDesc").value = "";
+      ok("Produto cadastrado.");
+    }catch(e){ err("Não foi possível cadastrar."); }
+  };
+  $$("[data-del]").forEach(btn => btn.onclick = async () => {
+    const cod = btn.dataset.del, n = +btn.dataset.n;
+    if(n > 0) return err(`${cod} tem ${n} caixa(s) ativa(s). Encerre-as antes de excluir o produto.`);
+    if(!await confirmar("Excluir produto", `${cod} sai do catálogo. As caixas já cadastradas continuam intactas.`,"Excluir",true)) return;
+    try{ await db.collection("produtos").doc(cod).delete(); ok("Produto excluído."); }
+    catch(e){ err("Não foi possível excluir."); }
+  });
+}
+
+/* ================================================================
+   TELA: EQUIPE
+   ================================================================ */
+function telaEquipe(){
+  return `
+  <div class="pagehead">
+    <div><div class="eyebrow">Administração</div><h2>Equipe e acessos</h2>
+    <div class="sub">O perfil define o que a pessoa enxerga e o que pode fazer.</div></div>
+  </div>
+  <div class="panel" style="max-width:620px">
+    <h3>Liberar acesso</h3>
+    <p class="hint">Isso cria as permissões. A senha ainda precisa ser criada no Firebase Authentication com o mesmo e-mail.</p>
+    <div class="field"><label for="uEmail">E-mail</label><input class="inp" id="uEmail" type="email" placeholder="nome@eplast.com"></div>
+    <div class="field"><label for="uNome">Nome</label><input class="inp" id="uNome" placeholder="Nome de quem vai usar"></div>
+    <div class="field"><label for="uPerfil">Perfil</label>
+      <select class="inp" id="uPerfil">${Object.keys(PERFIS).map(p=>`<option>${p}</option>`).join("")}</select>
+    </div>
+    <button class="btn btn-primary" id="btnUsuario">Liberar acesso</button>
+  </div>
+  <div class="panel">
+    <h3>Pessoas com acesso</h3><p class="hint">Carregando...</p>
+    <div id="tabelaUsuarios"></div>
+  </div>
+  <div class="panel">
+    <h3>O que cada perfil pode</h3>
+    <p class="hint">Matriz aplicada quando o perfil é atribuído.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th><div class="th">Perfil</div></th><th><div class="th">Telas</div></th><th><div class="th">Ações</div></th></tr></thead>
+      <tbody>${Object.keys(PERFIS).map(p => {
+        const {telas,acoes} = permissoesDe(p);
+        const t = Object.keys(telas).filter(k=>telas[k]).join(", ") || "—";
+        const a = Object.keys(acoes).filter(k=>acoes[k]&&k!=="visualizar").join(", ") || "somente leitura";
+        return `<tr><td style="font-weight:600">${esc(p)}</td>
+          <td style="font-size:13px;color:var(--ink-2)">${esc(t)}</td>
+          <td style="font-size:13px;color:var(--ink-2)">${esc(a)}</td></tr>`;
+      }).join("")}</tbody></table></div>
+  </div>`;
+}
+function ligarEquipe(){
+  $("#btnUsuario").onclick = async () => {
+    if(!pAcao("gerenciarUsuarios")) return err("Seu perfil não gerencia usuários.");
+    const email = $("#uEmail").value.trim().toLowerCase();
+    const nome  = $("#uNome").value.trim();
+    const perfil= $("#uPerfil").value;
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err("E-mail inválido.");
+    if(!nome) return err("Informe o nome.");
+    const {telas,acoes} = permissoesDe(perfil);
+    try{
+      await db.collection("usuario").doc(email).set({email,nome,perfil,telas,acoes,ativo:true});
+      $("#uEmail").value=""; $("#uNome").value="";
+      ok("Acesso liberado. Crie a senha no Firebase Authentication.");
+      listarUsuarios();
+    }catch(e){ err("Não foi possível liberar o acesso."); }
+  };
+  listarUsuarios();
+}
+function listarUsuarios(){
+  db.collection("usuario").get().then(snap => {
+    const linhas = snap.docs.map(d => d.data())
+      .sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||"")));
+    $("#tabelaUsuarios").innerHTML = `<div class="tablewrap"><table>
+      <thead><tr><th><div class="th">Nome</div></th><th><div class="th">E-mail</div></th>
+      <th><div class="th">Perfil</div></th><th><div class="th">Situação</div></th><th></th></tr></thead>
+      <tbody>${linhas.map(u => `<tr>
+        <td style="font-weight:600">${esc(u.nome||"—")}</td>
+        <td style="font-size:13px;color:var(--ink-2)">${esc(u.email)}</td>
+        <td>${esc(u.perfil||"—")}</td>
+        <td>${u.ativo===false?'<span class="pill s-Encerrado">Inativo</span>':'<span class="pill s-Estoque">Ativo</span>'}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="btn btn-sm" data-edit="${esc(u.email)}" data-perfil="${esc(u.perfil||"")}">Perfil</button>
+          <button class="btn btn-sm" data-toggle="${esc(u.email)}" data-ativo="${u.ativo===false?0:1}">${u.ativo===false?"Reativar":"Desativar"}</button>
+        </td></tr>`).join("")}</tbody></table></div>`;
+    $("#tabelaUsuarios").previousElementSibling.textContent = `${linhas.length} pessoa(s).`;
+    ligarAcoesUsuarios();
+  }).catch(()=> $("#tabelaUsuarios").innerHTML = `<div class="empty"><p>Não foi possível carregar a lista.</p></div>`);
+}
+function ligarAcoesUsuarios(){
+  $$("[data-edit]").forEach(b => b.onclick = () => {
+    const email = b.dataset.edit;
+    abrirDlg({
+      titulo:"Alterar perfil",
+      corpo:`<p style="margin:0 0 12px;color:var(--ink-2)">${esc(email)}</p>
+             <div class="field" style="margin:0"><label for="edPerfil">Novo perfil</label>
+             <select class="inp" id="edPerfil">${Object.keys(PERFIS).map(p=>`<option ${p===b.dataset.perfil?"selected":""}>${p}</option>`).join("")}</select></div>`,
+      botoes:[{texto:"Cancelar",acao:fecharDlg},{texto:"Salvar",classe:"btn-primary",acao:async()=>{
+        const perfil = $("#edPerfil").value;
+        const {telas,acoes} = permissoesDe(perfil);
+        fecharDlg();
+        try{ await db.collection("usuario").doc(email).update({perfil,telas,acoes}); ok("Perfil atualizado."); listarUsuarios(); }
+        catch(e){ err("Não foi possível atualizar."); }
+      }}]
+    });
+  });
+  $$("[data-toggle]").forEach(b => b.onclick = async () => {
+    const email = b.dataset.toggle, ativo = b.dataset.ativo === "1";
+    if(email === S.user.email) return err("Você não pode desativar o próprio acesso.");
+    if(!await confirmar(ativo?"Desativar acesso":"Reativar acesso",
+        ativo?`${email} deixa de conseguir entrar no sistema. O histórico das ações dessa pessoa continua preservado.`
+             :`${email} volta a ter acesso com o perfil atual.`, ativo?"Desativar":"Reativar", ativo)) return;
+    try{ await db.collection("usuario").doc(email).update({ativo:!ativo}); ok("Situação atualizada."); listarUsuarios(); }
+    catch(e){ err("Não foi possível atualizar."); }
+  });
+}
+
+/* ================================================================
+   FILTROS DE COLUNA
+   ================================================================ */
+let filtroCtx = null;
+function abrirFiltro(view, col, botao){
+  const status = VIEW_STATUS[view];
+  const grupos = agrupar(status);
+  const valores = Array.from(new Set(grupos.map(g => String(g[col] ?? "") || "—")))
+                       .sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const ativos = (S.filtros[view] && S.filtros[view][col]) || null;
+  filtroCtx = {view, col, valores};
+
+  $("#fdropOpts").innerHTML = valores.map((v,i) => `
+    <label class="fopt"><input type="checkbox" value="${esc(v)}" ${!ativos||ativos.includes(v)?"checked":""}><span>${esc(v)}</span></label>`).join("")
+    || `<p style="padding:10px;color:var(--mute);font-size:13px;margin:0">Sem valores.</p>`;
+  $("#fdropSearch").value = "";
+
+  const r = botao.getBoundingClientRect();
+  const d = $("#fdrop");
+  d.classList.add("on");
+  const larg = d.offsetWidth, alt = d.offsetHeight;
+  d.style.left = Math.max(8, Math.min(window.innerWidth - larg - 8, r.left - larg + r.width)) + "px";
+  d.style.top  = (r.bottom + alt + 8 > window.innerHeight ? Math.max(8, r.top - alt - 6) : r.bottom + 6) + "px";
+  setTimeout(()=>$("#fdropSearch").focus(),40);
+}
+function fecharFiltro(){ $("#fdrop").classList.remove("on"); filtroCtx = null; }
+$("#fdropSearch").addEventListener("input", e => {
+  const t = e.target.value.toLowerCase();
+  $$("#fdropOpts .fopt").forEach(o => o.style.display = o.textContent.toLowerCase().includes(t) ? "flex" : "none");
+});
+$("#fdropAll").onclick = () => {
+  const visiveis = $$("#fdropOpts .fopt").filter(o => o.style.display !== "none");
+  const marcarTodos = visiveis.some(o => !o.querySelector("input").checked);
+  visiveis.forEach(o => o.querySelector("input").checked = marcarTodos);
+};
+$("#fdropApply").onclick = () => {
+  if(!filtroCtx) return;
+  const {view,col,valores} = filtroCtx;
+  const escolhidos = $$("#fdropOpts input:checked").map(i => i.value);
+  S.filtros[view] = S.filtros[view] || {};
+  if(escolhidos.length === valores.length || escolhidos.length === 0) delete S.filtros[view][col];
+  else S.filtros[view][col] = escolhidos;
+  fecharFiltro();
+  desenhar();
+};
+document.addEventListener("click", e => {
+  if(!$("#fdrop").classList.contains("on")) return;
+  if(e.target.closest("#fdrop") || e.target.closest("[data-filtro]")) return;
+  fecharFiltro();
+});
+window.addEventListener("resize", fecharFiltro);
+
+/* ================================================================
+   SELEÇÃO EM MASSA
+   ================================================================ */
+function limparSelecao(){ S.sel.clear(); S.selEscopo = ""; atualizarBarraSelecao(); }
+$("#bulkClear").onclick = () => { limparSelecao(); desenhar(); };
+
+function atualizarBarraSelecao(){
+  const n = S.sel.size;
+  $("#bulkCount").textContent = n;
+  $("#bulk").classList.toggle("on", n > 0);
+  if(!n) return;
+
+  const caixas = Array.from(S.sel).map(acharCaixa).filter(Boolean);
+  const destinos = STATUS.filter(d => caixas.length && caixas.every(c => (FLUXO[c.status]||[]).includes(d)));
+  $("#bulkActions").innerHTML = destinos.length
+    ? destinos.map(d => `<button class="btn btn-sm" data-bulk="${esc(d)}" ${podeMover(d)?"":`disabled title="${esc(motivoBloqueio(d))}"`}>
+        <i style="width:7px;height:7px;border-radius:50%;background:${COR[d]};display:inline-block"></i> ${esc(d)}</button>`).join("")
+    : `<span style="font-size:13px;color:var(--mute)">Os status selecionados não têm destino em comum.</span>`;
+  $$("[data-bulk]:not([disabled])").forEach(b => b.onclick = () => moverCaixas(caixas, b.dataset.bulk));
+}
+
+/* ================================================================
+   EXPORTAR CSV (abre direto no Excel pt-BR)
+   ================================================================ */
+function exportarCSV(lista, nome){
+  if(!lista.length) return err("Nada para exportar.");
+  const cols = ["SN","Código","Produto","Lote","Status","Endereço","Origem","Entrada","Última movimentação","Dias parada","Eventos"];
+  const linhas = lista.map(c => [
+    c.sn, c.codigo, c.descricao, c.lote, c.status, c.endereco||"", c.origem||"",
+    fmtData(c.criadoEm || (c.eventos&&c.eventos[0]&&(c.eventos[0].ts||c.eventos[0].data))),
+    fmtData(ultimoMov(c)), diasParada(c), (c.eventos||[]).length
+  ]);
+  const cel = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const csv = "sep=;\r\n" + [cols, ...linhas].map(l => l.map(cel).join(";")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${nome}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  ok(`${lista.length} linha(s) exportada(s).`);
+}
+
+/* ================================================================
+   BUSCA / LEITOR DE CÓDIGO DE BARRAS
+   O leitor digita o código e manda Enter — é só ouvir o Enter.
+   ================================================================ */
+$("#scanInput").addEventListener("keydown", async e => {
+  if(e.key !== "Enter") return;
+  const termo = norm(e.target.value);
+  if(!termo) return;
+  let sn = termo;
+  if(/^\d+$/.test(sn)) sn = "PF" + sn.padStart(5,"0");
+  let c = acharCaixa(sn);
+  if(!c){
+    try{
+      const doc = await db.collection("caixas").doc(sn).get();
+      if(doc.exists){ c = doc.data(); if(c.status === "Encerrado") S.encerradas.push(c); else S.ativas.push(c); }
+    }catch(_){}
+  }
+  if(!c) return err(`SN ${sn} não encontrado.`);
+  e.target.value = "";
+  abrirCaixa(c.sn);
+});
+
+/* atalho: barra de espaço com Ctrl foca o leitor */
+document.addEventListener("keydown", e => {
+  if((e.ctrlKey||e.metaKey) && e.key === "k"){ e.preventDefault(); $("#scanInput").focus(); $("#scanInput").select(); }
+});
+
+console.info("Rastreabilidade v4 pronta.");
+</script>
+</body>
+</html>
